@@ -123,7 +123,7 @@ static duk_ret_t call(duk_context *ctx)
     actual = top;
     for (i = -1; i >= -top + 1; --i)
     {
-        if (lua_isnil(L, i))
+        if (lua_isnil(L, -1))
         {
             lua_pop(L, 1);
             --actual;
