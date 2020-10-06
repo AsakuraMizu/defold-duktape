@@ -25,28 +25,39 @@ void lua_pushluaobject(duk_context *ctx, duk_idx_t idx)
 
 static duk_ret_t get(duk_context *ctx)
 {
-    size_t len;
-    const char *key;
+    int reference, ikey;
+    const char *key = nullptr;
     lua_State *L;
-    int reference;
 
-    key = duk_require_lstring(ctx, 1, &len);
-    if (!strncmp(key, REFERENCE_NAME, len))
+    if (duk_is_number(ctx, 1))
     {
-        duk_get_prop_string(ctx, 0, REFERENCE_NAME);
-        reference = duk_get_int(ctx, -1);
-        duk_pop(ctx);
-        duk_push_int(ctx, reference);
+        ikey = duk_to_int32(ctx, 1);
+        if (duk_has_prop_index(ctx, 0, ikey))
+        {
+            duk_get_prop_index(ctx, 0, ikey);
+            return 1;
+        }
     }
     else
     {
-        L = duk_require_lua_state(ctx);
-        lua_pushluaobject(ctx, 0);
-        lua_pushstring(L, key);
-        lua_gettable(L, -2);
-        duk_push_lua(ctx, -1);
-        lua_pop(L, 2);
+        key = duk_to_string(ctx, 1);
+        if (duk_has_prop_string(ctx, 0, key))
+        {
+            duk_get_prop_string(ctx, 0, key);
+            return 1;
+        }
     }
+
+    L = duk_require_lua_state(ctx);
+    lua_pushluaobject(ctx, 0);
+    if (key)
+        lua_pushstring(L, key);
+    else
+        lua_pushinteger(L, ikey);
+    lua_gettable(L, -2);
+    duk_push_lua(ctx, -1);
+    lua_pop(L, 2);
+
     return 1;
 }
 
@@ -88,13 +99,14 @@ static duk_ret_t ownKeys(duk_context *ctx)
     {
         lua_pop(L, 1);
         duk_push_lua(ctx, -1);
+        duk_safe_to_string(ctx, -1);
         duk_put_prop_index(ctx, -2, cnt++);
     }
     lua_pop(L, 1);
     return 1;
 }
 
-const duk_function_list_entry lua_object_proxy_funcs[] ={
+const duk_function_list_entry lua_object_proxy_funcs[] = {
     { "has", has, 2 },
     { "get", get, 2 },
     { "set", set, 3 },

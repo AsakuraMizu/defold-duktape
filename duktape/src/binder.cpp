@@ -16,9 +16,13 @@ void duk_dump_err(duk_context *ctx, duk_idx_t idx)
 {
     duk_dup(ctx, idx);
     dmLogError("%s", duk_safe_to_string(ctx, -1));
-    duk_get_prop_string(ctx, -1, "stack");
-    dmLogError("%s", duk_safe_to_string(ctx, -1));
-    duk_pop_2(ctx);
+    duk_pop(ctx);
+    duk_get_prop_string(ctx, idx, "stack");
+    if (!duk_is_undefined(ctx, -1))
+    {
+        dmLogError("%s", duk_safe_to_string(ctx, -1));
+    }
+    duk_pop(ctx);
 }
 
 lua_State *duk_require_lua_state(duk_context *ctx)
