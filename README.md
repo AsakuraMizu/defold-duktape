@@ -26,10 +26,11 @@ Or point to the ZIP file of a [specific release](https://github.com/AsakuraMizu/
    module.exports = {
        init: function (self) {
            lua.print(0, "Hello, Defold in JavaScript!");
-           lua.msg.post(0, ".", "message");
+           lua.msg.post(0, ".", "example message", [1, 2, 3]);
        },
        on_message: function(self, message_id, message, sender) {
            lua.print(0, message_id);
+           lua.pprint(0, message);
        },
    };
    ```
@@ -143,3 +144,4 @@ Assuming `lo` is a `LuaObject`:
 ### Known issues
 
 + If you pass a non-exist uri to `duktape.load`, no error will be logged and it will work as an empty script.
++ Don't `"use strict"`.

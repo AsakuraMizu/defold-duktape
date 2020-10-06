@@ -1,5 +1,6 @@
 #include "binder.h"
 #include "duk_module_duktape.h"
+#include "CallbackBinder.h"
 #include "LuaObject.h"
 
 #define LUA_STATE_NAME "__lua_state"
@@ -15,13 +16,9 @@ void duk_dump_err(duk_context *ctx, duk_idx_t idx)
 {
     duk_dup(ctx, idx);
     dmLogError("%s", duk_safe_to_string(ctx, -1));
-    if (duk_is_error(ctx, -1))
-    {
-        duk_get_prop_string(ctx, -1, "stack");
-        dmLogError("%s", duk_safe_to_string(ctx, -1));
-        duk_pop(ctx);
-    }
-    duk_pop(ctx);
+    duk_get_prop_string(ctx, -1, "stack");
+    dmLogError("%s", duk_safe_to_string(ctx, -1));
+    duk_pop_2(ctx);
 }
 
 lua_State *duk_require_lua_state(duk_context *ctx)
@@ -40,16 +37,11 @@ lua_State *duk_require_lua_state(duk_context *ctx)
 void lua_pushduk(duk_context *ctx, duk_idx_t idx)
 {
     lua_State *L;
-    union
-    {
-        bool bool_val;
-        double double_val;
-        struct
-        {
-            size_t len;
-            const char *str_val;
-        };
-    };
+    bool bool_val;
+    double double_val;
+    const char *str_val;
+    size_t len;
+    int i;
 
     L = duk_require_lua_state(ctx);
     switch (duk_get_type(ctx, idx))
@@ -80,6 +72,21 @@ void lua_pushduk(duk_context *ctx, duk_idx_t idx)
         if (duk_check_lua_object(ctx, idx))
         {
             lua_pushluaobject(ctx, idx);
+        }
+        else if (duk_is_array(ctx, idx))
+        {
+            lua_newtable(L);
+            len = duk_get_length(ctx, idx);
+            for (i = 0; i < len; ++i)
+            {
+                duk_get_prop_index(ctx, idx, i);
+                lua_pushduk(ctx, -1);
+                lua_rawseti(L, -2, i + 1);
+            }
+        }
+        else if (duk_is_function(ctx, idx))
+        {
+            lua_pushdukcallback(ctx, idx);
         }
         else
         {

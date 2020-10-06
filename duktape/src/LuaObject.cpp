@@ -105,7 +105,7 @@ const duk_function_list_entry lua_object_proxy_funcs[] ={
 
 static duk_ret_t call(duk_context *ctx)
 {
-    int nret, top, i, err;
+    int nret, top, actual, i, err;
     lua_State *L;
 
     nret = duk_require_int(ctx, 0);
@@ -120,7 +120,19 @@ static duk_ret_t call(duk_context *ctx)
         lua_pushduk(ctx, i);
     }
 
-    err = dmScript::PCall(L, top - 1, nret);
+    actual = top;
+    for (i = -1; i >= -top + 1; --i)
+    {
+        if (lua_isnil(L, i))
+        {
+            lua_pop(L, 1);
+            --actual;
+            continue;
+        }
+        break;
+    }
+
+    err = dmScript::PCall(L, actual - 1, nret);
     if (err)
     {
         return duk_type_error(ctx, "pcall failed");

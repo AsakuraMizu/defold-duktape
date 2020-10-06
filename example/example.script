@@ -2,6 +2,10 @@ local script = duktape.load("res/jsexample/example.js")
 
 function init(self)
 	script:init(self)
+	self.f("js function")
+	self.f = function(x)
+		print("bind a " .. x)
+	end
 end
 
 function final(self)
