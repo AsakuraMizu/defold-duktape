@@ -1,9 +1,6 @@
 #include "binder.h"
-#include "duk_module_duktape.h"
-#include "CallbackBinder.h"
+#include "JSObject.h"
 #include "LuaObject.h"
-
-#define LUA_STATE_NAME "__lua_state"
 
 void duk_dump_obj(duk_context *ctx, duk_idx_t idx)
 {
@@ -25,29 +22,14 @@ void duk_dump_err(duk_context *ctx, duk_idx_t idx)
     duk_pop(ctx);
 }
 
-lua_State *duk_require_lua_state(duk_context *ctx)
+void lua_pushduk(lua_State *L, duk_context *ctx, duk_idx_t idx)
 {
-    lua_State *L;
-
-    duk_push_global_stash(ctx);
-    duk_get_prop_string(ctx, -1, LUA_STATE_NAME);
-    if (!duk_is_pointer(ctx, -1))
-        duk_type_error(ctx, "could not get lua state");
-    L = (lua_State *)duk_get_pointer(ctx, -1);
-    duk_pop_2(ctx);
-    return L;
-}
-
-void lua_pushduk(duk_context *ctx, duk_idx_t idx)
-{
-    lua_State *L;
     bool bool_val;
     double double_val;
     const char *str_val;
     size_t len;
     int i;
 
-    L = duk_require_lua_state(ctx);
     switch (duk_get_type(ctx, idx))
     {
     case DUK_TYPE_BOOLEAN:
@@ -75,7 +57,7 @@ void lua_pushduk(duk_context *ctx, duk_idx_t idx)
     {
         if (duk_check_lua_object(ctx, idx))
         {
-            lua_pushluaobject(ctx, idx);
+            lua_pushluaobject(L, ctx, idx);
         }
         else if (duk_is_array(ctx, idx))
         {
@@ -84,30 +66,17 @@ void lua_pushduk(duk_context *ctx, duk_idx_t idx)
             for (i = 0; i < len; ++i)
             {
                 duk_get_prop_index(ctx, idx, i);
-                lua_pushduk(ctx, -1);
+                lua_pushduk(L, ctx, -1);
                 lua_rawseti(L, -2, i + 1);
             }
         }
-        else if (duk_is_function(ctx, idx))
-        {
-            lua_pushdukcallback(ctx, idx);
-        }
         else
         {
-            duk_enum(ctx, idx, 0);
-            lua_newtable(L);
-            while (duk_next(ctx, -1, true))
-            {
-                lua_pushduk(ctx, -2);
-                lua_pushduk(ctx, -1);
-                lua_settable(L, -3);
-                duk_pop_2(ctx);
-            }
-            duk_pop(ctx);
+            lua_pushjsobject(L, ctx, idx);
         }
         break;
     }
-    
+
     default:
     {
         lua_pushnil(L);
@@ -116,9 +85,8 @@ void lua_pushduk(duk_context *ctx, duk_idx_t idx)
     }
 }
 
-void duk_push_lua(duk_context *ctx, int idx)
+void duk_push_lua(duk_context *ctx, lua_State *L, int idx)
 {
-    lua_State *L = duk_require_lua_state(ctx);
     union
     {
         bool bool_val;
@@ -152,57 +120,14 @@ void duk_push_lua(duk_context *ctx, int idx)
         break;
 
     default:
-        duk_push_lua_object(ctx, idx);
+        if (lua_checkjsobject(L, idx))
+        {
+            duk_push_js_object(ctx, L, idx);
+        }
+        else
+        {
+            duk_push_lua_object(ctx, L, idx);
+        }
         break;
     }
-}
-
-static duk_ret_t mod_search(duk_context *ctx)
-{
-    int ret;
-    size_t len;
-    const char *id;
-    char *buf;
-    lua_State *L;
-    
-    L = duk_require_lua_state(ctx);
-    id = duk_require_lstring(ctx, 0, &len);
-    if (!strncmp(id, "res/", 4))
-    {
-        lua_getglobal(L, "sys");
-        lua_getfield(L, -1, "load_resource");
-        lua_pushstring(L, id + 3);
-        ret = dmScript::PCall(L, 1, 1);
-        if (ret == 0)
-        {
-            buf = (char *)lua_tolstring(L, -1, &len);
-            duk_push_lstring(ctx, buf, len);
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 2);
-        return ret == 0;
-    }
-    return 0;
-}
-
-void duk_init_lua_binder(duk_context *ctx, lua_State *L)
-{
-    // bind lua state
-    duk_push_global_stash(ctx);
-    duk_push_pointer(ctx, L);
-    duk_put_prop_string(ctx, -2, LUA_STATE_NAME);
-    duk_pop(ctx);
-
-    // module loading
-    duk_module_duktape_init(ctx);
-    duk_get_global_string(ctx, "Duktape");
-    duk_push_c_function(ctx, mod_search, 4);
-    duk_put_prop_string(ctx, -2, "modSearch");
-    duk_pop(ctx);
-
-    // lua global table
-    lua_pushvalue(L, LUA_GLOBALSINDEX);
-    duk_push_lua(ctx, -1);
-    duk_put_global_string(ctx, "lua");
-    lua_pop(L, 1);
 }

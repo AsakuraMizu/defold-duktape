@@ -4,18 +4,17 @@
 #include <dmsdk/sdk.h>
 #include "Script.h"
 
-class Engine
+namespace Engine
 {
-private:
-    static Engine *instance;
+    extern duk_context *_ctx;
+    extern lua_State *_L;
 
-    Engine(){};
-    ~Engine(){};
-
-public:
-    static Engine *getInstance();
-
+    void init(lua_State *L);
     Script *load(lua_State *L);
+
+    void push_instance(duk_context *ctx, uint32_t id);
+
+    void create_require(duk_context *ctx);
 };
 
 #endif // __ENGINE_H__

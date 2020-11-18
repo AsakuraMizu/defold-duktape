@@ -5,7 +5,7 @@
 
 static int load(lua_State *L)
 {
-    Script *script = Engine::getInstance()->load(L);
+    Script *script = Engine::load(L);
     if (script)
     {
         script->push(L);
@@ -28,6 +28,8 @@ static void LuaInit(lua_State* L)
     int top = lua_gettop(L);
 
     luaL_register(L, LIB_NAME, Module_methods);
+
+    Engine::init(L);
 
     lua_pop(L, 1);
     assert(top == lua_gettop(L));

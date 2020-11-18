@@ -1,4 +1,4 @@
-local script = duktape.load("res/jsexample/example.js")
+local script = duktape.load("/jsexample/example.js")
 
 function init(self)
 	self.f = function(x)

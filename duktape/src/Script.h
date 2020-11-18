@@ -6,7 +6,7 @@
 
 struct Script
 {
-    duk_context *ctx;
+    uint32_t id;
     void push(lua_State *L);
 };
 
